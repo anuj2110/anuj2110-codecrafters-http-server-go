@@ -29,17 +29,21 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		log.Println("Accepted connection from: ", conn.RemoteAddr())
-		buf, err := ReadFromRequest(conn)
-		if err != nil {
-			fmt.Println("Error reading from connection: ", err.Error())
-			os.Exit(1)
-		}
-		data := strings.Split(string(buf), "\r\n")
-		log.Printf("Read data: %+#v", data)
-		PathMapper(data, conn)
-		conn.Close()
+		go HandleConnection(conn)
 	}
+}
+
+func HandleConnection(conn net.Conn) {
+	log.Println("Accepted connection from: ", conn.RemoteAddr())
+	defer conn.Close()
+	buf, err := ReadFromRequest(conn)
+	if err != nil {
+		fmt.Println("Error reading from connection: ", err.Error())
+		os.Exit(1)
+	}
+	data := strings.Split(string(buf), "\r\n")
+	log.Printf("Read data: %+#v", data)
+	PathMapper(data, conn)
 }
 
 func PathMapper(data []string, conn net.Conn) {
@@ -66,8 +70,8 @@ func WriteResponse(conn net.Conn, statusCode int, statusString string, contentTy
 }
 
 func ReadHeadersAndWriteResponse(data []string, conn net.Conn) {
-	headerData := strings.Split(data[2],": ")
-	log.Printf("Header data: %+#v",headerData)
+	headerData := strings.Split(data[2], ": ")
+	log.Printf("Header data: %+#v", headerData)
 	WriteResponse(conn, 200, "OK", "text/plain", len(headerData[1]), headerData[1])
 }
 
