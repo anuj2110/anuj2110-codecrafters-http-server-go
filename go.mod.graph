@@ -1,0 +1,10 @@
+{
+	"Path": "github.com/codecrafters-io/http-server-starter-go",
+	"Main": true,
+	"Dir": "/Users/anujtrehan/Desktop/personal/codecrafters-http-server-go",
+	"GoMod": "/Users/anujtrehan/Desktop/personal/codecrafters-http-server-go/go.mod",
+	"GoVersion": "1.22"
+}
+------------------------------------------------------
+github.com/codecrafters-io/http-server-starter-go go@1.22
+go@1.22 toolchain@go1.22
