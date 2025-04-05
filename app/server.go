@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"strings"
@@ -10,12 +11,14 @@ import (
 	"os"
 )
 
+var directory = flag.String("directory", "/tmp/", "Directory to serve files from")
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
+	flag.Parse()
 	fmt.Println("Logs from your program will appear here!")
-
 	// Uncomment this block to pass the first stage
 	//
+	fmt.Println("Directory: ", *directory)
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -50,6 +53,8 @@ func PathMapper(data []string, conn net.Conn) {
 	switch {
 	case strings.Contains(data[0], "echo"):
 		ReadEchoPath(data, conn)
+	case strings.Contains(data[0],"files"):
+		WriteFileResponse(data, conn)
 	case strings.Contains(data[0], " / "):
 		WriteResponse(conn, 200, "OK", "text/plain", -1, "")
 	case strings.Contains(data[0], "user-agent"):
@@ -57,6 +62,26 @@ func PathMapper(data []string, conn net.Conn) {
 	default:
 		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
 	}
+}
+
+func WriteFileResponse(data []string, conn net.Conn){
+	fileName := strings.Split(strings.Split(data[0]," ")[1],"/")[2]
+	filePath := *directory + fileName
+	log.Printf("File path: %s", filePath)
+	file,err := os.Open(filePath)
+	if err!=nil{
+		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+		return
+	}
+	defer file.Close()
+	buf := make([]byte, 1024)
+	n,err := file.Read(buf)
+	if err != nil {
+		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+		return
+	}
+	log.Printf("File data: %s", string(buf[0:n]))
+	WriteResponse(conn, 200, "OK", "text/plain", n, string(buf[0:n]))
 }
 
 func WriteResponse(conn net.Conn, statusCode int, statusString string, contentType string, contentLength int, body string) {
