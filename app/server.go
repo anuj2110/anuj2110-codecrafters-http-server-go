@@ -81,7 +81,7 @@ func WriteFileResponse(data []string, conn net.Conn){
 		return
 	}
 	log.Printf("File data: %s", string(buf[0:n]))
-	WriteResponse(conn, 200, "OK", "text/plain", n, string(buf[0:n]))
+	WriteResponse(conn, 200, "OK", "application/octet-stream", n, string(buf[0:n]))
 }
 
 func WriteResponse(conn net.Conn, statusCode int, statusString string, contentType string, contentLength int, body string) {
