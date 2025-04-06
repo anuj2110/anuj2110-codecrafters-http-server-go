@@ -12,6 +12,7 @@ import (
 )
 
 var directory = flag.String("directory", "/tmp/", "Directory to serve files from")
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	flag.Parse()
@@ -53,8 +54,8 @@ func PathMapper(data []string, conn net.Conn) {
 	switch {
 	case strings.Contains(data[0], "echo"):
 		ReadEchoPath(data, conn)
-	case strings.Contains(data[0],"files"):
-		WriteFileResponse(data, conn)
+	case strings.Contains(data[0], "files"):
+		HandleFileResponse(data, conn)
 	case strings.Contains(data[0], " / "):
 		WriteResponse(conn, 200, "OK", "text/plain", -1, "")
 	case strings.Contains(data[0], "user-agent"):
@@ -64,24 +65,50 @@ func PathMapper(data []string, conn net.Conn) {
 	}
 }
 
-func WriteFileResponse(data []string, conn net.Conn){
-	fileName := strings.Split(strings.Split(data[0]," ")[1],"/")[2]
+func ExtractFilePath(data []string) string {
+	fileName := strings.Split(strings.Split(data[0], " ")[1], "/")[2]
 	filePath := *directory + fileName
-	log.Printf("File path: %s", filePath)
-	file,err := os.Open(filePath)
-	if err!=nil{
-		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
-		return
+	return filePath
+}
+
+func HandleFileResponse(data []string, conn net.Conn) {
+	method := strings.Split(data[0], " ")[0]
+	switch method {
+	case "GET":
+		filePath := ExtractFilePath(data)
+		log.Printf("File path: %s", filePath)
+		file, err := os.Open(filePath)
+		if err != nil {
+			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+			return
+		}
+		defer file.Close()
+		buf := make([]byte, 1024)
+		n, err := file.Read(buf)
+		if err != nil {
+			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+			return
+		}
+		log.Printf("File data: %s", string(buf[0:n]))
+		WriteResponse(conn, 200, "OK", "application/octet-stream", n, string(buf[0:n]))
+	case "POST":
+		log.Printf("POST request: %+#v",data)
+		filePath := ExtractFilePath(data)
+		requestBody := data[7]
+		log.Printf("Request body: %s", requestBody)
+		file,err := os.Create(filePath)
+		if err != nil {
+			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "")
+			return
+		}
+		defer file.Close()
+		_,err = file.WriteString(requestBody)
+		if err != nil {
+			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "")
+			return
+		}
+		WriteResponse(conn, 201, "Created", "text/plain", -1, "")
 	}
-	defer file.Close()
-	buf := make([]byte, 1024)
-	n,err := file.Read(buf)
-	if err != nil {
-		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
-		return
-	}
-	log.Printf("File data: %s", string(buf[0:n]))
-	WriteResponse(conn, 200, "OK", "application/octet-stream", n, string(buf[0:n]))
 }
 
 func WriteResponse(conn net.Conn, statusCode int, statusString string, contentType string, contentLength int, body string) {
