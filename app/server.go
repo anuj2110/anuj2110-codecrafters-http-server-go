@@ -155,9 +155,9 @@ func ReadEchoPath(data []string, conn net.Conn) {
 				WriteResponse(conn, 500, "Internal Server Error", plainHeaders, "")
 				return
 			}
-			defer zw.Close()
+			zw.Close()
 			log.Printf("Compressed data: %s", buf.String())
-			resHeaders["Content-Length"] = fmt.Sprintf("%d", len(buf.Bytes()))
+			resHeaders["Content-Length"] = fmt.Sprintf("%d", len(buf.String()))
 			WriteResponse(conn, 200, "OK", resHeaders, buf.String())
 			return
 		}
