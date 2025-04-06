@@ -94,7 +94,7 @@ func HandleFileResponse(data []string, conn net.Conn) {
 	case "POST":
 		log.Printf("POST request: %+#v",data)
 		filePath := ExtractFilePath(data)
-		requestBody := data[7]
+		requestBody := data[len(data)-1]
 		log.Printf("Request body: %s", requestBody)
 		file,err := os.Create(filePath)
 		if err != nil {
