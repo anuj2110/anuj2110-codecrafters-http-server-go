@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"log"
@@ -137,8 +139,7 @@ func ReadEchoPath(data []string, conn net.Conn) {
 	last := len(echoPath) - 1
 	log.Printf("Echo path: %s", echoPath[last])
 	var resHeaders map[string]string = makeHeaders(
-		"Content-Type", "text/plain",
-		"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
+		"Content-Type", "text/plain")
 	for _,compressionMethod :=  range strings.Split(headers[compressionHeader]," "){
 		if strings.Contains(compressionMethod, ","){
 			compressionMethod = strings.Split(compressionMethod, ",")[0]
@@ -147,8 +148,19 @@ func ReadEchoPath(data []string, conn net.Conn) {
 		if _, ok := compressionMethodsAllowed[compressionMethod]; ok{
 			log.Printf("Compression method allowed: %s", compressionMethod)
 			resHeaders["Content-Encoding"] = compressionMethod
-			break
+			var buf bytes.Buffer
+			zw := gzip.NewWriter(&buf)
+			_,err := zw.Write([]byte(echoPath[last]))
+			if err != nil {
+				WriteResponse(conn, 500, "Internal Server Error", plainHeaders, "")
+				return
+			}
+			defer zw.Close()
+			log.Printf("Compressed data: %s", buf.String())
+			resHeaders["Content-Length"] = fmt.Sprintf("%d", len(buf.Bytes()))
+			WriteResponse(conn, 200, "OK", resHeaders, buf.String())
+			return
 		}
 	}
-	WriteResponse(conn, 200, "OK", resHeaders, echoPath[last])
+		WriteResponse(conn, 200, "OK", resHeaders, echoPath[last])
 }
