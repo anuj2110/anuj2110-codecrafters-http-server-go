@@ -136,17 +136,14 @@ func ReadEchoPath(data []string, conn net.Conn) {
 	echoPath := strings.Split(routeData[1], "/")
 	last := len(echoPath) - 1
 	log.Printf("Echo path: %s", echoPath[last])
-	var resHeaders map[string]string
-	if _, ok := compressionMethodsAllowed[headers[compressionHeader]]; !ok {
-		resHeaders = makeHeaders(
-			"Content-Type", "text/plain",
-			"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
-	} else {
-		resHeaders = makeHeaders(
-			"Content-Type", "text/plain",
-			"Content-Encoding", headers[compressionHeader],
-			"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
-		
+	var resHeaders map[string]string = makeHeaders(
+		"Content-Type", "text/plain",
+		"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
+	for _,compressionMethod :=  range strings.Split(headers[compressionHeader]," "){
+		if _, ok := compressionMethodsAllowed[compressionMethod]; ok{
+			resHeaders["Content-Encoding"] = compressionMethod
+			break
+		}
 	}
 	WriteResponse(conn, 200, "OK", resHeaders, echoPath[last])
 }
