@@ -53,3 +53,14 @@ func WriteResponse(conn net.Conn, statusCode int, statusString string, headers m
 		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
 	}
 }
+
+func ExtractHeaders(data []string) map[string]string {
+	headers := make(map[string]string)
+	for i := 1; i < len(data)-2; i++ {
+		headerData := strings.Split(data[i], ": ")
+		if len(headerData) == 2 {
+			headers[headerData[0]] = headerData[1]
+		}
+	}
+	return headers
+}

@@ -130,12 +130,7 @@ func ReadHeadersAndWriteResponse(data []string, conn net.Conn) {
 }
 
 func ReadEchoPath(data []string, conn net.Conn) {
-	headers := make(map[string]string)
-	for i := 1; i < len(data)-2; i++ {
-		log.Printf("Header: %s", data[i])
-		header := strings.Split(data[i], ": ")
-		headers[header[0]] = header[1]
-	}
+	headers := ExtractHeaders(data)
 	log.Printf("Headers: %+#v", headers)
 	routeData := strings.Split(data[0], " ")
 	echoPath := strings.Split(routeData[1], "/")
