@@ -11,7 +11,16 @@ import (
 	"os"
 )
 
-var directory = flag.String("directory", "/tmp/", "Directory to serve files from")
+var (
+	directory                 = flag.String("directory", "/tmp/", "Directory to serve files from")
+	compressionMethodsAllowed = map[string]bool{
+		"gzip": true,
+	}
+)
+
+const (
+	compressionHeader = "Accept-Encoding"
+)
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -57,11 +66,11 @@ func PathMapper(data []string, conn net.Conn) {
 	case strings.Contains(data[0], "files"):
 		HandleFileResponse(data, conn)
 	case strings.Contains(data[0], " / "):
-		WriteResponse(conn, 200, "OK", "text/plain", -1, "")
+		WriteResponse(conn, 200, "OK", "text/plain", -1, "", "")
 	case strings.Contains(data[0], "user-agent"):
 		ReadHeadersAndWriteResponse(data, conn)
 	default:
-		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+		WriteResponse(conn, 404, "Not Found", "text/plain", -1, "", "")
 	}
 }
 
@@ -79,60 +88,77 @@ func HandleFileResponse(data []string, conn net.Conn) {
 		log.Printf("File path: %s", filePath)
 		file, err := os.Open(filePath)
 		if err != nil {
-			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "", "")
 			return
 		}
 		defer file.Close()
 		buf := make([]byte, 1024)
 		n, err := file.Read(buf)
 		if err != nil {
-			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "")
+			WriteResponse(conn, 404, "Not Found", "text/plain", -1, "", "")
 			return
 		}
 		log.Printf("File data: %s", string(buf[0:n]))
-		WriteResponse(conn, 200, "OK", "application/octet-stream", n, string(buf[0:n]))
+		WriteResponse(conn, 200, "OK", "application/octet-stream", n, "", string(buf[0:n]))
 	case "POST":
-		log.Printf("POST request: %+#v",data)
+		log.Printf("POST request: %+#v", data)
 		filePath := ExtractFilePath(data)
 		requestBody := data[len(data)-1]
 		log.Printf("Request body: %s", requestBody)
-		file,err := os.Create(filePath)
+		file, err := os.Create(filePath)
 		if err != nil {
-			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "")
+			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "", "")
 			return
 		}
 		defer file.Close()
-		_,err = file.WriteString(requestBody)
+		_, err = file.WriteString(requestBody)
 		if err != nil {
-			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "")
+			WriteResponse(conn, 500, "Internal Server Error", "text/plain", -1, "", "")
 			return
 		}
-		WriteResponse(conn, 201, "Created", "text/plain", -1, "")
+		WriteResponse(conn, 201, "Created", "text/plain", -1, "", "")
 	}
 }
 
-func WriteResponse(conn net.Conn, statusCode int, statusString string, contentType string, contentLength int, body string) {
-	log.Printf("Writing response: %d %s %s %d %s", statusCode, statusString, contentType, contentLength, body)
-	if contentLength == -1 || contentType == "" {
+func WriteResponse(conn net.Conn, statusCode int, statusString string, contentType string, contentLength int, contentEncoding string, body string) {
+	log.Printf("Writing response: %d %s %s %d %s %s", statusCode, statusString, contentType, contentLength, body, contentEncoding)
+	if contentLength == -1 || contentType == ""{
 		conn.Write(fmt.Appendf(nil, "HTTP/1.1 %d %s\r\n\r\n", statusCode, statusString))
 		return
 	}
+	if contentEncoding != "" {
+	conn.Write(fmt.Appendf(nil, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nContent-Encoding: %s\r\n\r\n%s", statusCode, statusString, contentType, contentLength, contentEncoding, body))
+	} else{
 	conn.Write(fmt.Appendf(nil, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s", statusCode, statusString, contentType, contentLength, body))
+
+	}
 
 }
 
 func ReadHeadersAndWriteResponse(data []string, conn net.Conn) {
 	headerData := strings.Split(data[2], ": ")
 	log.Printf("Header data: %+#v", headerData)
-	WriteResponse(conn, 200, "OK", "text/plain", len(headerData[1]), headerData[1])
+	WriteResponse(conn, 200, "OK", "text/plain", len(headerData[1]), "", headerData[1])
 }
 
 func ReadEchoPath(data []string, conn net.Conn) {
+	headers := make(map[string]string)
+	for i := 1; i < len(data)-2; i++ {
+		log.Printf("Header: %s", data[i])
+		header := strings.Split(data[i], ": ")
+		headers[header[0]] = header[1]
+	}
+	log.Printf("Headers: %+#v", headers)
 	routeData := strings.Split(data[0], " ")
 	echoPath := strings.Split(routeData[1], "/")
 	last := len(echoPath) - 1
 	log.Printf("Echo path: %s", echoPath[last])
-	WriteResponse(conn, 200, "OK", "text/plain", len(echoPath[last]), echoPath[last])
+	if _, ok := compressionMethodsAllowed[headers[compressionHeader]]; !ok {
+		log.Printf("Here")
+		WriteResponse(conn, 200, "OK", "text/plain", len(echoPath[last]),"", echoPath[last])
+	} else {
+		WriteResponse(conn, 200, "OK", "text/plain", len(echoPath[last]),headers[compressionHeader], echoPath[last])
+	}
 }
 
 func ReadFromRequest(conn net.Conn) ([]byte, error) {
