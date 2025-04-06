@@ -139,7 +139,8 @@ func ReadEchoPath(data []string, conn net.Conn) {
 	last := len(echoPath) - 1
 	log.Printf("Echo path: %s", echoPath[last])
 	var resHeaders map[string]string = makeHeaders(
-		"Content-Type", "text/plain")
+		"Content-Type", "text/plain",
+	"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
 	for _,compressionMethod :=  range strings.Split(headers[compressionHeader]," "){
 		if strings.Contains(compressionMethod, ","){
 			compressionMethod = strings.Split(compressionMethod, ",")[0]
