@@ -140,7 +140,12 @@ func ReadEchoPath(data []string, conn net.Conn) {
 		"Content-Type", "text/plain",
 		"Content-Length", fmt.Sprintf("%d", len(echoPath[last])))
 	for _,compressionMethod :=  range strings.Split(headers[compressionHeader]," "){
+		if strings.Contains(compressionMethod, ","){
+			compressionMethod = strings.Split(compressionMethod, ",")[0]
+		}
+		log.Printf("Compression method: %s,%t", compressionMethod,compressionMethodsAllowed[compressionMethod])
 		if _, ok := compressionMethodsAllowed[compressionMethod]; ok{
+			log.Printf("Compression method allowed: %s", compressionMethod)
 			resHeaders["Content-Encoding"] = compressionMethod
 			break
 		}
